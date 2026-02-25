@@ -1,5 +1,13 @@
-ics.js
+ics.js - HaoTian's fork
 ============
+What is added to the original ics.js:
+
+- Better compatibility for recurring events
+- Add reminder functionality for events (valarms)
+- Add support for timezones
+- Add support for geo location and Apple Calendar's map integration
+
+----------
 
 A browser friendly .ics/.vcs file generator written entirely in JavaScript!
 
@@ -7,15 +15,23 @@ Now you can make calendar friendly files client-side.  It outputs .ics files, so
 
 How To Use
 ----------
-Simply use invoke the object and use the functions...
+Simply invoke the object and use the functions...
 
-	var cal = ics();
-	cal.addEvent(subject, description, location, begin, end);
+	var cal = ics(uidDomain, prodId, vtimezone);
+	cal.addEvent(subject, description, location, begin, end, rrule, alarmBefore, geo, appleGeo);
 	cal.addEvent(subject, description, location, begin, end); // yes, you can have multiple events :-)
-    cal.download(filename);
+	cal.download(filename);
+
+All `addEvent` parameters after `stop` are optional:
+
+- `rrule` : Recurrence rule object (see [Recurring Events](#recurring-events) below)
+- `alarmBefore` : Number of minutes before the event to trigger a reminder notification
+- `geo` : Object with `lat`, `lon`, and optional `radius` (in metres) for a `GEO` field
+- `appleGeo` : Object with `lat` and `lon` to override the Apple Maps pin location (falls back to `geo` if omitted)
 
 `begin` and `end` need to be formatted in a way that is friendly to `Date()`
 
+`uidDomain` sets the domain part of each event's UID. `prodId` is the calendar product name. `vtimezone` is an optional VTIMEZONE block string; when provided, `DTSTART`/`DTEND` are emitted with a `TZID` parameter instead of floating time.
 
 Recurring Events
 ----------------
@@ -38,13 +54,57 @@ Example
 -------
 * **[Demo](https://rawgit.com/nwcell/ics.js/master/demo/demo.html)**
 
-```
+```html
 <script>
-	var cal = ics();
-	cal.addEvent('Demo Event', 'This is an all day event', 'Nome, AK', '8/7/2013', '8/7/2013');
-	cal.addEvent('Demo Event', 'This is thirty minute event', 'Nome, AK', '8/7/2013 5:30 pm', '8/7/2013 6:00 pm');
+  // Basic usage (no timezone)
+  var cal = ics();
+  cal.addEvent('All Day Event', 'This is an all day event', 'Nome, AK', '8/7/2026', '8/7/2026');
+  cal.addEvent('Thirty Minute Event', 'This is a thirty minute event', 'Nome, AK', '8/7/2026 5:30 pm', '8/7/2026 6:00 pm');
+
+  // With timezone
+  var SEP = (navigator.appVersion.indexOf('Win') !== -1) ? '\r\n' : '\n';
+  var vtimezone = [
+    'X-WR-TIMEZONE:America/New_York',
+    'BEGIN:VTIMEZONE',
+    'TZID:America/New_York',
+    'BEGIN:STANDARD',
+    'DTSTART:19701101T020000',
+    'TZOFFSETFROM:-0400',
+    'TZOFFSETTO:-0500',
+    'TZNAME:EST',
+    'END:STANDARD',
+    'END:VTIMEZONE'
+  ].join(SEP);
+
+  var tzCal = ics('myapp.example', 'My Calendar', vtimezone);
+
+  // Recurring weekly event with a 15-minute reminder
+  tzCal.addEvent(
+    'Stand-up',
+    'Daily stand-up meeting',
+    'Office',
+    '2026-03-02 09:00',
+    '2026-03-02 09:30',
+    { freq: 'WEEKLY', byday: ['MO', 'TU', 'WE', 'TH', 'FR'], until: '2026-12-31' },
+    15
+  );
+
+  // Event with geo coordinates and Apple Maps integration
+  tzCal.addEvent(
+    'Conference',
+    'Annual developer conference',
+    'Moscone Center, San Francisco, CA',
+    '2026-06-10 09:00',
+    '2026-06-10 18:00',
+    null,
+    null,
+    { lat: 37.7844, lon: -122.4000, radius: 100 },
+    { lat: 37.7844, lon: -122.4000 }
+  );
+
+  tzCal.download('my-calendar');
 </script>
-<a href="javascript:cal.download()">Demo</a>
+<a href="javascript:tzCal.download('my-calendar')">Download Calendar</a>
 ```
 
 
