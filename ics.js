@@ -53,10 +53,10 @@ var ics = function(uidDomain, prodId, vtimezone) {
      * @param  {string} stop        Ending date of event
      * @param  {object} rrule       Recurrence rule object (optional)
      * @param  {number} alarmBefore Number of minutes before event to trigger alarm (optional)
-     * @param  {object} geo         Geographical coordinates object with lat and lon properties (optional) format: { lat: number, lon: number, gcj02: { lat: number, lon: number }, radius: number }
-     * @param  {boolean} cnGeoCOORD        Use GCJ-02 (China) coordinates for Apple structured location (optional, default false)
+     * @param  {object} geo         Geographical coordinates object with lat and lon properties (optional) format: { lat: number, lon: number, radius: number }
+     * @param  {object} appleGeo    Coordinates to use for Apple structured location (optional). If null, falls back to geo coordinates. Format: { lat: number, lon: number }
      */
-    'addEvent': function(subject, description, location, begin, stop, rrule, alarmBefore, geo, cnGeoCOORD) {
+    'addEvent': function(subject, description, location, begin, stop, rrule, alarmBefore, geo, appleGeo) {
       // I'm not in the mood to make these optional... So they are all required
       if (typeof subject === 'undefined' ||
         typeof description === 'undefined' ||
@@ -213,9 +213,9 @@ var ics = function(uidDomain, prodId, vtimezone) {
         calendarEvent.splice(calendarEvent.indexOf('LOCATION:' + location) + 1, 0,
           'GEO:' + geo.lat + ';' + geo.lon
         );
-        // Use GCJ-02 coordinates for China's Apple devices, or WGS-84 for global
-        var apLat = (cnGeoCOORD && geo.gcj02 && geo.gcj02.lat !== null && typeof geo.gcj02.lat === 'number') ? geo.gcj02.lat : geo.lat;
-        var apLon = (cnGeoCOORD && geo.gcj02 && geo.gcj02.lon !== null && typeof geo.gcj02.lon === 'number') ? geo.gcj02.lon : geo.lon;
+        // Use appleGeo coordinates if provided, otherwise fall back to geo
+        var apLat = (appleGeo && typeof appleGeo.lat === 'number') ? appleGeo.lat : geo.lat;
+        var apLon = (appleGeo && typeof appleGeo.lon === 'number') ? appleGeo.lon : geo.lon;
         var apRadius = geo.radius || 50;
         calendarEvent.splice(calendarEvent.indexOf('GEO:' + geo.lat + ';' + geo.lon) + 1, 0,
           'X-APPLE-STRUCTURED-LOCATION;VALUE=URI;X-ADDRESS=' + location + ';X-APPLE-RADIUS=' + apRadius + ';X-TITLE=' + location + ':geo:' + apLat + ',' + apLon
