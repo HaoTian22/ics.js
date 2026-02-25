@@ -15,9 +15,15 @@ var ics = function(uidDomain, prodId, vtimezone) {
   var SEPARATOR = (navigator.appVersion.indexOf('Win') !== -1) ? '\r\n' : '\n';
   var calendarEvents = [];
 
-  var tzBlock = (typeof vtimezone !== 'undefined') ? vtimezone : null;
-  var tzidMatch = tzBlock ? tzBlock.match(/TZID:([^\r\n]+)/) : null;
-  var timezone = tzidMatch ? tzidMatch[1].trim() : null;
+  // Accept vtimezone as a single block string or an array of block strings
+  var tzBlock = (typeof vtimezone !== 'undefined' && vtimezone !== null)
+    ? (Array.isArray(vtimezone) ? vtimezone.join(SEPARATOR) : vtimezone)
+    : null;
+  // Extract all TZIDs present in the supplied block(s)
+  var tzidList = tzBlock
+    ? (tzBlock.match(/TZID:([^\r\n]+)/g) || []).map(function(m) { return m.replace('TZID:', '').trim(); })
+    : [];
+  var timezone = tzidList.length > 0 ? tzidList[0] : null;
 
   var calendarStart = [
     'BEGIN:VCALENDAR',
@@ -55,8 +61,10 @@ var ics = function(uidDomain, prodId, vtimezone) {
      * @param  {number} alarmBefore Number of minutes before event to trigger alarm (optional)
      * @param  {object} geo         Geographical coordinates object with lat and lon properties (optional) format: { lat: number, lon: number, radius: number }
      * @param  {object} appleGeo    Coordinates to use for Apple structured location (optional). If null, falls back to geo coordinates. Format: { lat: number, lon: number }
+     * @param  {string} eventTimezone  TZID to use for this event (optional). Must be one of the TZIDs in the supplied vtimezone blocks.
+     *                                 If omitted or not found, falls back to the first registered TZID with a warning.
      */
-    'addEvent': function(subject, description, location, begin, stop, rrule, alarmBefore, geo, appleGeo) {
+    'addEvent': function(subject, description, location, begin, stop, rrule, alarmBefore, geo, appleGeo, eventTimezone) {
       // I'm not in the mood to make these optional... So they are all required
       if (typeof subject === 'undefined' ||
         typeof description === 'undefined' ||
@@ -112,6 +120,16 @@ var ics = function(uidDomain, prodId, vtimezone) {
               }
             }
           }
+        }
+      }
+
+      // Resolve the timezone to use for this event
+      var eventTz = timezone;
+      if (typeof eventTimezone !== 'undefined' && eventTimezone !== null && eventTimezone !== '') {
+        if (tzidList.indexOf(eventTimezone) !== -1) {
+          eventTz = eventTimezone;
+        } else {
+          console.warn("Timezone '" + eventTimezone + "' not found in provided vtimezone blocks. Falling back to '" + timezone + "'.");
         }
       }
 
@@ -202,8 +220,8 @@ var ics = function(uidDomain, prodId, vtimezone) {
         'CLASS:PUBLIC',
         'DESCRIPTION:' + description,
         'DTSTAMP:' + now,
-        (timezone ? 'DTSTART;TZID=' + timezone : 'DTSTART') + ':' + start,
-        (timezone ? 'DTEND;TZID=' + timezone : 'DTEND') + ':' + end,
+        (eventTz ? 'DTSTART;TZID=' + eventTz : 'DTSTART') + ':' + start,
+        (eventTz ? 'DTEND;TZID=' + eventTz : 'DTEND') + ':' + end,
         'LOCATION:' + location,
         'SUMMARY;LANGUAGE=en-us:' + subject,
         'TRANSP:TRANSPARENT',
